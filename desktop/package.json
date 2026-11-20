@@ -1,0 +1,25 @@
+{
+  "name": "cloudsentinel-desktop",
+  "version": "1.0.0",
+  "description": "Local-First Unified Multi-Cloud Infrastructure Monitoring & AI Incident Response",
+  "main": "dist/main/main.js",
+  "scripts": {
+    "build:ts": "tsc -p tsconfig.json",
+    "build": "npm run build:ts",
+    "start": "electron .",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder"
+  },
+  "dependencies": {
+    "electron-is-dev": "^3.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "electron": "^31.0.2",
+    "electron-builder": "^24.13.3",
+    "typescript": "^5.4.5"
+  },
+  "allowScripts": {
+    "electron@31.7.7": true
+  }
+}

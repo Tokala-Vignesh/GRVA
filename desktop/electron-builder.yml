@@ -1,0 +1,41 @@
+appId: com.cloudsentinel.ai
+productName: CloudSentinel AI
+copyright: Copyright © 2026 CloudSentinel AI Team
+
+directories:
+  output: ../dist/desktop
+  buildResources: resources
+
+files:
+  - dist/**/*
+  - ../frontend/dist/**/*
+  - package.json
+
+extraResources:
+  - from: ../backend/dist
+    to: backend
+    filter:
+      - "**/*"
+
+win:
+  target:
+    - nsis
+    - portable
+  artifactName: "${productName}-Setup-${version}.${ext}"
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+
+mac:
+  target:
+    - dmg
+  category: public.app-category.developer-tools
+
+linux:
+  target:
+    - AppImage
+    - deb
+  category: Development
