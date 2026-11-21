@@ -19,8 +19,19 @@ export class BackendManager {
   private isShuttingDown: boolean = false;
 
   constructor(appPath: string, isPackaged: boolean) {
-    // Generate high-entropy 32-byte cryptographic token
-    const token = crypto.randomBytes(32).toString('hex');
+    // Check environment or .env file first to ensure backend and desktop tokens match
+    let token = process.env.CLOUDSENTINEL_TOKEN;
+    if (!token) {
+      try {
+        const envFile = path.resolve(appPath, '..', '.env');
+        if (fs.existsSync(envFile)) {
+          const m = fs.readFileSync(envFile, 'utf-8').match(/^CLOUDSENTINEL_TOKEN=(.*)$/m);
+          if (m && m[1].trim()) token = m[1].trim();
+        }
+      } catch {}
+    }
+    token = token || crypto.randomBytes(32).toString('hex');
+
     this.config = {
       host: '127.0.0.1',
       port: 8765,

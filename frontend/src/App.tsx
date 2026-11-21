@@ -20,8 +20,9 @@ import { SettingsPage } from './pages/SettingsPage';
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      refetchOnWindowFocus: false,
+      refetchOnWindowFocus: true,
       retry: 1,
+      staleTime: 5000,
     },
   },
 });

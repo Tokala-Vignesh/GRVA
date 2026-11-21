@@ -1,7 +1,23 @@
+export type CloudProvider =
+  | 'aws'
+  | 'gcp'
+  | 'azure'
+  | 'oci'
+  | 'digitalocean'
+  | 'hetzner'
+  | 'render'
+  | 'cloudflare'
+  | 'vercel'
+  | 'supabase'
+  | 'flyio'
+  | 'docker'
+  | 'kubernetes'
+  | 'private';
+
 export interface CloudConnection {
   id: string;
   name: string;
-  provider: 'aws' | 'gcp' | 'azure' | 'private';
+  provider: CloudProvider;
   account_id: string;
   region: string;
   status: 'connected' | 'error' | 'unverified' | 'disconnected';
@@ -13,7 +29,7 @@ export interface CloudConnection {
 export interface CloudResource {
   id: string;
   connection_id: string;
-  provider: 'aws' | 'gcp' | 'azure' | 'private';
+  provider: CloudProvider;
   resource_id: string;
   resource_name: string;
   resource_type: string;
@@ -109,4 +125,20 @@ export interface SystemHealth {
     base_url: string;
     error: string | null;
   };
+}
+
+export interface OllamaModelDetail {
+  name: string;
+  model: string;
+  is_remote: boolean;
+  remote_host?: string | null;
+  parameter_size?: string | null;
+  family?: string | null;
+  quantization_level?: string | null;
+  size?: number | null;
+}
+
+export interface OllamaModelsResponse {
+  models: string[];
+  details: OllamaModelDetail[];
 }

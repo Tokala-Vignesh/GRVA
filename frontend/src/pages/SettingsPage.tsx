@@ -161,16 +161,48 @@ export const SettingsPage: React.FC = () => {
 
             <div>
               <label className="block text-slate-400 mb-1">Selected Local Model</label>
-              <input
-                type="text"
-                value={form.ollama_model}
-                onChange={(e) => setForm({ ...form, ollama_model: e.target.value })}
-                placeholder="e.g. llama3.2, mistral, qwen2.5"
-                className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-slate-100 font-mono focus:outline-none focus:border-cyan-500"
-              />
-              <span className="text-[10px] text-slate-500">
-                Installed models: {(ollamaModels?.models || []).join(', ') || 'None detected yet'}
-              </span>
+              <div className="flex gap-2 mb-2">
+                <input
+                  type="text"
+                  value={form.ollama_model}
+                  onChange={(e) => setForm({ ...form, ollama_model: e.target.value })}
+                  placeholder="e.g. llama3.2, mistral, qwen2.5"
+                  className="flex-1 bg-slate-950 border border-slate-800 rounded-lg p-2 text-slate-100 font-mono focus:outline-none focus:border-cyan-500"
+                />
+                {ollamaModels?.models && ollamaModels.models.length > 0 && (
+                  <select
+                    value={form.ollama_model}
+                    onChange={(e) => setForm({ ...form, ollama_model: e.target.value })}
+                    className="bg-slate-950 border border-slate-800 rounded-lg px-2 text-slate-300 font-mono text-xs focus:outline-none focus:border-cyan-500"
+                  >
+                    <option value="" disabled>Switch to model...</option>
+                    {ollamaModels.models.map((m) => (
+                      <option key={m} value={m}>{m}</option>
+                    ))}
+                  </select>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-1 text-[10px] text-slate-500 items-center">
+                <span>Installed:</span>
+                {ollamaModels?.models && ollamaModels.models.length > 0 ? (
+                  ollamaModels.models.map((m) => (
+                    <button
+                      key={m}
+                      type="button"
+                      onClick={() => setForm({ ...form, ollama_model: m })}
+                      className={`px-1.5 py-0.5 rounded border transition ${
+                        form.ollama_model === m
+                          ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30 font-medium'
+                          : 'bg-slate-950 text-slate-400 border-slate-800 hover:text-slate-200'
+                      }`}
+                    >
+                      {m}
+                    </button>
+                  ))
+                ) : (
+                  <span>None detected yet</span>
+                )}
+              </div>
             </div>
           </div>
         </div>

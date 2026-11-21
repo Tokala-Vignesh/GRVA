@@ -26,6 +26,7 @@ azure-identity>=1.16.0
 azure-mgmt-compute>=30.0.0
 azure-mgmt-resource>=23.0.0
 azure-monitor-query>=2.0.0
+azure-mgmt-monitor>=6.0.0
 
 # Monitoring & Scheduling
 apscheduler>=3.10.4
