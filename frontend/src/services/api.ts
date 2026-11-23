@@ -6,6 +6,7 @@ import {
   Incident,
   RemediationAction,
   SystemHealth,
+  OllamaModelsResponse,
 } from '../types';
 
 declare global {
@@ -109,6 +110,76 @@ class ApiService {
     });
   }
 
+  public createOCIConnection(data: any): Promise<CloudConnection> {
+    return this.request<CloudConnection>('/connections/oci', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  public createDigitalOceanConnection(data: any): Promise<CloudConnection> {
+    return this.request<CloudConnection>('/connections/digitalocean', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  public createHetznerConnection(data: any): Promise<CloudConnection> {
+    return this.request<CloudConnection>('/connections/hetzner', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  public createRenderConnection(data: any): Promise<CloudConnection> {
+    return this.request<CloudConnection>('/connections/render', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  public createCloudflareConnection(data: any): Promise<CloudConnection> {
+    return this.request<CloudConnection>('/connections/cloudflare', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  public createVercelConnection(data: any): Promise<CloudConnection> {
+    return this.request<CloudConnection>('/connections/vercel', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  public createSupabaseConnection(data: any): Promise<CloudConnection> {
+    return this.request<CloudConnection>('/connections/supabase', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  public createFlyioConnection(data: any): Promise<CloudConnection> {
+    return this.request<CloudConnection>('/connections/flyio', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  public createDockerConnection(data: any): Promise<CloudConnection> {
+    return this.request<CloudConnection>('/connections/docker', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  public createKubernetesConnection(data: any): Promise<CloudConnection> {
+    return this.request<CloudConnection>('/connections/kubernetes', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
   public createPrivateConnection(data: any): Promise<CloudConnection> {
     return this.request<CloudConnection>('/connections/private', {
       method: 'POST',
@@ -185,15 +256,88 @@ class ApiService {
     return this.request<any>('/ai/status');
   }
 
-  public getOllamaModels(): Promise<{ models: string[] }> {
-    return this.request<{ models: string[] }>('/ai/models');
+  public getOllamaModels(): Promise<OllamaModelsResponse> {
+    return this.request<OllamaModelsResponse>('/ai/models');
   }
 
-  public askAI(query: string, resourceId?: string): Promise<{ response: string; grounding_data: any; model_used: string }> {
+  public setOllamaModel(model: string): Promise<{ status: string; active_model: string }> {
+    return this.request<{ status: string; active_model: string }>('/ai/model', {
+      method: 'POST',
+      body: JSON.stringify({ model }),
+    });
+  }
+
+  public askAI(query: string, resourceId?: string, model?: string): Promise<{ response: string; grounding_data: any; model_used: string }> {
     return this.request<any>('/ai/chat', {
       method: 'POST',
-      body: JSON.stringify({ query, resource_id: resourceId }),
+      body: JSON.stringify({ query, resource_id: resourceId, model }),
     });
+  }
+
+  public async askAIStream(
+    query: string,
+    model: string | undefined,
+    resourceId: string | undefined,
+    onToken: (token: string) => void,
+    onDone: (modelUsed: string, grounding: any) => void,
+    onError: (err: any) => void
+  ): Promise<void> {
+    await this.init();
+    try {
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (this.token) {
+        headers['X-CloudSentinel-Token'] = this.token;
+      }
+
+      const response = await fetch(`${this.baseUrl}/ai/chat/stream`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ query, model, resource_id: resourceId }),
+      });
+
+      if (!response.ok) {
+        const errText = await response.text();
+        throw new Error(`HTTP Error ${response.status}: ${errText}`);
+      }
+
+      const reader = response.body?.getReader();
+      if (!reader) {
+        throw new Error('No readable stream available in response.');
+      }
+
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (trimmed.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(trimmed.slice(6));
+              if (data.token) {
+                onToken(data.token);
+              }
+              if (data.done) {
+                onDone(data.model || 'local-ai', data.grounding);
+              }
+            } catch {
+              // ignore malformed SSE line
+            }
+          }
+        }
+      }
+    } catch (err: any) {
+      onError(err);
+    }
   }
 
   public investigateAI(data: any): Promise<any> {

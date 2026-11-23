@@ -33,6 +33,56 @@ class PrivateConnectionCreate(BaseModel):
     host_name: Optional[str] = None
     region: str = "on-premise"
 
+class OCIConnectionCreate(BaseModel):
+    name: str = Field(..., min_length=2, max_length=100)
+    tenancy_ocid: str
+    user_ocid: Optional[str] = None
+    fingerprint: Optional[str] = None
+    private_key: Optional[str] = None
+    region: str = "us-ashburn-1"
+
+class DigitalOceanConnectionCreate(BaseModel):
+    name: str = Field(..., min_length=2, max_length=100)
+    api_token: str
+
+class HetznerConnectionCreate(BaseModel):
+    name: str = Field(..., min_length=2, max_length=100)
+    api_token: str
+
+class RenderConnectionCreate(BaseModel):
+    name: str = Field(..., min_length=2, max_length=100)
+    api_key: str
+
+class CloudflareConnectionCreate(BaseModel):
+    name: str = Field(..., min_length=2, max_length=100)
+    api_token: str
+    account_id: str
+
+class VercelConnectionCreate(BaseModel):
+    name: str = Field(..., min_length=2, max_length=100)
+    api_token: str
+    team_id: Optional[str] = None
+
+class SupabaseConnectionCreate(BaseModel):
+    name: str = Field(..., min_length=2, max_length=100)
+    api_token: str
+
+class FlyioConnectionCreate(BaseModel):
+    name: str = Field(..., min_length=2, max_length=100)
+    api_token: str
+
+class DockerConnectionCreate(BaseModel):
+    name: str = Field(..., min_length=2, max_length=100)
+    daemon_url: str = "tcp://127.0.0.1:2375" # or npipe:////./pipe/docker_engine
+    tls_verify: bool = False
+
+class KubernetesConnectionCreate(BaseModel):
+    name: str = Field(..., min_length=2, max_length=100)
+    api_server_url: str = "https://127.0.0.1:6443"
+    bearer_token: Optional[str] = None
+    kubeconfig_content: Optional[str] = None
+    namespace: str = "default"
+
 class ConnectionResponse(BaseModel):
     id: str
     name: str
@@ -114,11 +164,27 @@ class RemediationResponse(BaseModel):
 class AIChatRequest(BaseModel):
     query: str
     resource_id: Optional[str] = None
+    model: Optional[str] = None
 
 class AIChatResponse(BaseModel):
     response: str
     grounding_data: Dict[str, Any]
     model_used: str
+
+class AIModelSwitchRequest(BaseModel):
+    model: str
+
+class OllamaModelItem(BaseModel):
+    name: str
+    is_remote: bool = False
+    parameter_size: Optional[str] = None
+    quantization_level: Optional[str] = None
+    size: Optional[int] = None
+    family: Optional[str] = None
+
+class OllamaModelsResponse(BaseModel):
+    models: List[str]
+    details: List[OllamaModelItem]
 
 class AIInvestigateRequest(BaseModel):
     incident_id: Optional[str] = None

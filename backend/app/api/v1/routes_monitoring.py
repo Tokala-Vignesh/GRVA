@@ -20,7 +20,12 @@ async def get_monitoring_overview(db: AsyncSession = Depends(get_db)):
     res_query = await db.execute(select(CloudResource))
     resources = res_query.scalars().all()
 
-    by_provider = {"aws": 0, "gcp": 0, "azure": 0, "private": 0}
+    by_provider = {
+        "aws": 0, "gcp": 0, "azure": 0, "oci": 0,
+        "digitalocean": 0, "hetzner": 0, "render": 0,
+        "cloudflare": 0, "vercel": 0, "supabase": 0,
+        "flyio": 0, "docker": 0, "kubernetes": 0, "private": 0,
+    }
     by_status = {"healthy": 0, "warning": 0, "critical": 0, "stopped": 0}
 
     for r in resources:

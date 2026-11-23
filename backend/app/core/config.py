@@ -2,6 +2,7 @@ import os
 import sys
 import secrets
 from pathlib import Path
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Ensure loopback traffic is never routed through external/sandbox proxies
@@ -64,7 +65,7 @@ class Settings(BaseSettings):
   PORT: int = 8765
 
   # Per-session dynamic API authentication token
-  API_TOKEN: str = os.getenv("CLOUDSENTINEL_TOKEN") or secrets.token_urlsafe(32)
+  API_TOKEN: str = Field(default_factory=lambda: os.getenv("CLOUDSENTINEL_TOKEN") or secrets.token_urlsafe(32), validation_alias="CLOUDSENTINEL_TOKEN")
 
   # Storage directories in OS AppData or fallback
   DATA_DIR: Path = get_default_app_data_dir()

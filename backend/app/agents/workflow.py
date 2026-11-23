@@ -7,6 +7,8 @@ from langgraph.graph import StateGraph, END
 from langgraph.checkpoint.sqlite import SqliteSaver
 import sqlite3
 from app.core.config import settings
+from app.database.session import SyncSessionLocal
+from app.models.entities import AuditLog, SecurityEvent, CloudResource
 from app.agents.state import MultiAgentState, AgentFinding, ProposedRemediation
 from app.agents.tools import AgentTools
 from app.services.ollama_service import ollama_service
@@ -160,13 +162,27 @@ class CloudSentinelMultiAgentSystem:
 
     def node_log_agent(self, state: MultiAgentState) -> Dict[str, Any]:
         """Agent 4: Log Analysis Specialist."""
-        finding: AgentFinding = {
-            "agent_name": "LogAnalysisAgent",
-            "summary": "Log inspection completed across provider event streams.",
-            "details": {"error_count": 0, "logs_analyzed": 50},
-            "confidence": 0.80,
-        }
-        return {"agent_findings": [finding]}
+        with SyncSessionLocal() as session:
+            audit_logs = session.query(AuditLog).order_by(AuditLog.timestamp.desc()).limit(20).all()
+            security_events = session.query(SecurityEvent).order_by(SecurityEvent.occurred_at.desc()).limit(10).all()
+
+            error_count = sum(1 for e in security_events if e.severity in ("critical", "high"))
+            summary = (
+                f"Log inspection evaluated {len(audit_logs)} audit records and {len(security_events)} security event streams. "
+                f"High-severity anomalies: {error_count}."
+            )
+            finding: AgentFinding = {
+                "agent_name": "LogAnalysisAgent",
+                "summary": summary,
+                "details": {
+                    "audit_records_analyzed": len(audit_logs),
+                    "security_events_analyzed": len(security_events),
+                    "high_severity_events": error_count,
+                    "recent_actions": [log.action for log in audit_logs[:5]],
+                },
+                "confidence": 0.88,
+            }
+            return {"agent_findings": [finding]}
 
     def node_security_agent(self, state: MultiAgentState) -> Dict[str, Any]:
         """Agent 5: Security Intelligence Specialist."""
@@ -186,23 +202,45 @@ class CloudSentinelMultiAgentSystem:
         telemetry = state.get("telemetry_data", {})
         resource_id = state.get("resource_id") or "Target Resource"
 
-        # Deterministic domain-rule synthesis
-        analysis_text = (
-            f"Multi-Agent Root Cause Analysis for {resource_id}:\n"
-            f"Telemetry and Isolation Forest anomaly scores indicate resource utilization spike "
-            f"correlated with recent workload traffic changes. "
-            f"No unauthorized security events or privilege escalations detected."
-        )
+        # Dynamically synthesize from actual specialist agent findings
+        anomaly_finding = next((f for f in findings if f.get("agent_name") == "AnomalyDetectionAgent"), None)
+        monitoring_finding = next((f for f in findings if f.get("agent_name") == "InfrastructureMonitoringAgent"), None)
+        security_finding = next((f for f in findings if f.get("agent_name") == "SecurityIntelligenceAgent"), None)
+
+        is_anomaly = anomaly_finding and anomaly_finding.get("details", {}).get("is_anomaly", False)
+        sec_events = security_finding.get("details", {}).get("events", []) if security_finding else []
+
+        synthesis_parts = []
+        if is_anomaly:
+            score = anomaly_finding["details"].get("anomaly_score", 0.0)
+            synthesis_parts.append(
+                f"Multi-Agent Root Cause Synthesis for {resource_id}: "
+                f"Isolation Forest identified a multivariate anomaly (Anomaly Score: {score:.3f}). "
+                f"Resource telemetry exhibits significant deviation from the historical baseline."
+            )
+        else:
+            synthesis_parts.append(
+                f"Multi-Agent Health Assessment for {resource_id}: "
+                f"Isolation Forest model reports nominal baseline telemetry behavior with no metric anomalies."
+            )
+
+        if sec_events:
+            synthesis_parts.append(f"Security Intelligence detected {len(sec_events)} correlated audit event(s) in the evaluation window.")
+        else:
+            synthesis_parts.append("No unauthorized security events, privilege escalations, or policy violations detected.")
+
+        analysis_text = "\n".join(synthesis_parts)
+        confidence = 0.90 if is_anomaly else 0.85
 
         finding: AgentFinding = {
             "agent_name": "RootCauseAnalysisAgent",
-            "summary": "Correlated metric anomalies, forecast exhaustion, and security events.",
-            "details": {"synthesis": analysis_text},
-            "confidence": 0.88,
+            "summary": "Correlated metric anomalies, time-series telemetry, and security audit logs.",
+            "details": {"synthesis": analysis_text, "correlated_anomaly": is_anomaly},
+            "confidence": confidence,
         }
         return {
             "root_cause_analysis": analysis_text,
-            "root_cause_confidence": 0.88,
+            "root_cause_confidence": confidence,
             "agent_findings": [finding],
         }
 
@@ -211,19 +249,34 @@ class CloudSentinelMultiAgentSystem:
         incident_id = state.get("incident_id")
         resource_id = state.get("resource_id") or "unknown"
 
+        provider = "cloud"
+        with SyncSessionLocal() as session:
+            res = session.query(CloudResource).filter(
+                (CloudResource.id == resource_id) | (CloudResource.resource_id == resource_id)
+            ).first()
+            if res:
+                provider = res.provider
+
+        if provider == "private":
+            action_type = "restart_service"
+            params = {"service_name": "node_exporter", "instruction": "Restart systemd monitoring agent"}
+        else:
+            action_type = "recommend_resize"
+            params = {"suggested_action": f"Evaluate compute instance resize or auto-scaling trigger on {provider.upper()}"}
+
         proposal = AgentTools.propose_remediation_action(
             incident_id=incident_id,
             resource_id=resource_id,
-            action_type="recommend_resize",
+            action_type=action_type,
             target=resource_id,
-            parameters={"suggested_action": "Evaluate scaling to higher compute capacity"},
+            parameters=params,
             risk_level="low",
         )
 
         remediation_item: ProposedRemediation = {
-            "action_type": "recommend_resize",
+            "action_type": action_type,
             "target_resource_id": resource_id,
-            "target_name": resource_id,
+            "target_name": res.resource_name if (res and res.resource_name) else resource_id,
             "parameters": {"proposal": proposal},
             "risk_level": "low",
             "approved": False,
@@ -233,7 +286,7 @@ class CloudSentinelMultiAgentSystem:
 
         finding: AgentFinding = {
             "agent_name": "RemediationAgent",
-            "summary": "Generated safe remediation proposal. Awaiting explicit user approval.",
+            "summary": f"Generated safe {action_type} proposal. Awaiting explicit user approval.",
             "details": proposal,
             "confidence": 0.95,
         }

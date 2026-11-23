@@ -18,7 +18,7 @@ async function createWindow() {
     minWidth: 1024,
     minHeight: 700,
     backgroundColor: '#020617', // slate-950
-    show: false,
+    show: true,
     title: 'CloudSentinel AI — Unified Multi-Cloud Observability',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -27,6 +27,11 @@ async function createWindow() {
       sandbox: true,
       webSecurity: true,
     },
+  });
+
+  mainWindow.once('ready-to-show', () => {
+    mainWindow?.show();
+    mainWindow?.focus();
   });
 
   // Protect against arbitrary URL navigation
@@ -76,9 +81,8 @@ async function createWindow() {
     mainWindow.webContents.openDevTools({ mode: 'detach' });
   }
 
-  mainWindow.once('ready-to-show', () => {
-    mainWindow?.show();
-  });
+  mainWindow.show();
+  mainWindow.focus();
 
   mainWindow.on('closed', () => {
     mainWindow = null;
@@ -124,8 +128,18 @@ app.whenReady().then(async () => {
     if (!preStarted) {
       backendManager = new BackendManager(app.getAppPath(), app.isPackaged);
     } else {
-      // Create a lightweight stub so IPC handlers still resolve token from env
-      const stubToken = process.env.CLOUDSENTINEL_TOKEN || 'dev-no-token';
+      // Create a lightweight stub so IPC handlers resolve token from env or .env file
+      let stubToken = process.env.CLOUDSENTINEL_TOKEN;
+      if (!stubToken) {
+        try {
+          const envFile = path.resolve(app.getAppPath(), '..', '.env');
+          if (fs.existsSync(envFile)) {
+            const m = fs.readFileSync(envFile, 'utf-8').match(/^CLOUDSENTINEL_TOKEN=(.*)$/m);
+            if (m && m[1].trim()) stubToken = m[1].trim();
+          }
+        } catch {}
+      }
+      stubToken = stubToken || 'cloudsentinel_session_vault_token_489274912739';
       backendManager = new BackendManager(app.getAppPath(), app.isPackaged);
       // Override the generated token with the one the pre-started backend knows
       (backendManager as any).config.token = stubToken;
@@ -144,6 +158,9 @@ app.whenReady().then(async () => {
     await createWindow();
   } catch (error) {
     console.error('[Main] Failed to start CloudSentinel application:', error);
+    try {
+      fs.writeFileSync(path.join(__dirname, '..', '..', 'desktop_error.log'), String(error) + '\n' + ((error as any)?.stack || ''));
+    } catch {}
     app.quit();
   }
 

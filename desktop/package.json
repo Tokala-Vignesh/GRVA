@@ -11,6 +11,7 @@
     "dist": "electron-builder"
   },
   "dependencies": {
+    "cloudsentinel-ai-workspace": "file:..",
     "electron-is-dev": "^3.0.1"
   },
   "devDependencies": {

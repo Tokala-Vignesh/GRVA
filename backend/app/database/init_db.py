@@ -1,6 +1,7 @@
 import logging
 from sqlalchemy import text
 from app.database.session import sync_engine
+from app.core.config import settings
 from app.models.entities import Base, ApplicationSetting
 from app.database.session import SyncSessionLocal
 
@@ -31,8 +32,8 @@ def init_database() -> None:
             ("metrics_interval_seconds", "300", "monitoring"),
             ("private_host_interval_seconds", "60", "monitoring"),
             ("alert_interval_seconds", "60", "monitoring"),
-            ("ollama_base_url", "http://127.0.0.1:11434", "ollama"),
-            ("ollama_model", "llama3.2", "ollama"),
+            ("ollama_base_url", settings.OLLAMA_BASE_URL, "ollama"),
+            ("ollama_model", settings.OLLAMA_MODEL, "ollama"),
             ("ml_anomaly_contamination", "0.05", "ml"),
             ("ml_min_training_samples", "15", "ml"),
             ("data_retention_days", "30", "retention"),
@@ -41,6 +42,8 @@ def init_database() -> None:
             existing = session.query(ApplicationSetting).filter_by(key=key).first()
             if not existing:
                 session.add(ApplicationSetting(key=key, value=val, category=cat))
+            elif key == "ollama_model" and existing.value == "llama3.2" and settings.OLLAMA_MODEL != "llama3.2":
+                existing.value = settings.OLLAMA_MODEL
         session.commit()
 
     logger.info("Database schema initialized successfully.")
